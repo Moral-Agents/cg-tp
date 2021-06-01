@@ -1,2 +1,2 @@
 # Trabajo Parcial
-![Alt text](https://imgur.com/uYOmUm2 "Screenshot")
+![Alt text](https://i.imgur.com/uYOmUm2.jpg "Screenshot")
