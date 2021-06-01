@@ -59,6 +59,39 @@ void scroll_callback(GLFWwindow* window, double xpos, double ypos) {
     camara.processScroll(ypos);
 }
 
+i32 n = 128;
+
+std::vector<float> perlinNoise1D(int nOctaves, float fScalingBias) {
+	std::vector<float> pNoise1D(n);
+
+	std::vector<float> noise1D(n);
+	for (int i = 0; i < n; i++) noise1D[i] = (float)rand() / (float)RAND_MAX;
+
+	
+
+	for (int i = 0; i < n; i++)
+	{
+		float iNoise = 0.0f;
+		float fScale = 1.0f;
+		float fScaleAcc = 0.0f;
+		for (int o = 0; o < nOctaves; o++)
+		{
+			int nPitch = n >> o;
+			int nSample1 = (i / nPitch) * nPitch;
+			int nSample2 = (nSample1 + nPitch) % n;
+
+			float fBlend = (float)(i - nSample1) / (float)nPitch;
+			float fInter = (1.0f - fBlend) * noise1D[nSample1] + fBlend * noise1D[nSample2];
+
+			iNoise += fInter * fScale;
+			fScaleAcc += fScale;
+			fScale /= fScalingBias;
+		}
+		pNoise1D[i] = iNoise / fScaleAcc;
+	}
+	return pNoise1D;
+}
+
 int main() {
     GLFWwindow* window = glutilInit(3, 3, SCR_WIDTH, SCR_HEIGHT, "Terreno");
     Shader* shader = new Shader("/Users/wilmartarazona/Documents/OpenGL", "/Users/wilmartarazona/Pictures/Texturas");
@@ -69,15 +102,16 @@ int main() {
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     
-    unsigned int n = 30;
-    
-    vector<vec3> positions(n*n);
-    
-    for (unsigned int i = 0; i < n; ++i) {
-        for (unsigned int j = 0; j < n; ++j) {
-            positions[i * n + j] = vec3(i - n / 2.0f, 0.0f, j - n /  2.0f);
-        }
-    }
+	std::vector<float> pNoise1D = perlinNoise1D(7, 3.20);
+	std::vector<glm::vec3> positions(n*n);
+	for (u32 i = 0; i < n; ++i) {
+		for (u32 j = 0; j < n; ++j) {
+			f32 x = i - n / 2.0f + 0.01;
+			f32 z = j - n / 2.0f + 0.01;
+			f32 y = int(pNoise1D[i] * 120) - 30;
+			positions[i*n + j] = glm::vec3(x, y, z);			
+		}
+	}
     
     unsigned int vbo, vao, ebo;
     glGenVertexArrays(1, &vao);
@@ -125,10 +159,10 @@ int main() {
         glBindVertexArray(vao);
         
         for (unsigned int i = 0; i < positions.size(); ++i) {
-            if (i % 3 == 0) {
+            if ((positions[i].y > -5) {
                 glBindTexture(GL_TEXTURE_2D, textura);
             }
-            else if (i % 2 == 0) {
+            else if (positions[i].y > -10) {
                 glBindTexture(GL_TEXTURE_2D, textura1);
             }
             else {
