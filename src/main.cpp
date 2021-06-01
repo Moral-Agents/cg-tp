@@ -20,7 +20,9 @@ float lasty = SCR_HEIGHT / 2.0f;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-Cam camara(0.0, 1.5);
+unsigned int n = 128;
+
+Cam camara(0.0, 8.5);
 
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -59,59 +61,55 @@ void scroll_callback(GLFWwindow* window, double xpos, double ypos) {
     camara.processScroll(ypos);
 }
 
-i32 n = 128;
+vector<float> perlinNoise1D(int nOctaves, float fScalingBias) {
+    vector<float> pNoise1D(n);
 
-std::vector<float> perlinNoise1D(int nOctaves, float fScalingBias) {
-	std::vector<float> pNoise1D(n);
+    vector<float> noise1D(n);
+    for (int i = 0; i < n; i++) noise1D[i] = (float)rand() / (float)RAND_MAX;
 
-	std::vector<float> noise1D(n);
-	for (int i = 0; i < n; i++) noise1D[i] = (float)rand() / (float)RAND_MAX;
+    
 
-	
+    for (int i = 0; i < n; i++)
+    {
+        float iNoise = 0.0f;
+        float fScale = 1.0f;
+        float fScaleAcc = 0.0f;
+        for (int o = 0; o < nOctaves; o++)
+        {
+            int nPitch = n >> o;
+            int nSample1 = (i / nPitch) * nPitch;
+            int nSample2 = (nSample1 + nPitch) % n;
 
-	for (int i = 0; i < n; i++)
-	{
-		float iNoise = 0.0f;
-		float fScale = 1.0f;
-		float fScaleAcc = 0.0f;
-		for (int o = 0; o < nOctaves; o++)
-		{
-			int nPitch = n >> o;
-			int nSample1 = (i / nPitch) * nPitch;
-			int nSample2 = (nSample1 + nPitch) % n;
+            float fBlend = (float)(i - nSample1) / (float)nPitch;
+            float fInter = (1.0f - fBlend) * noise1D[nSample1] + fBlend * noise1D[nSample2];
 
-			float fBlend = (float)(i - nSample1) / (float)nPitch;
-			float fInter = (1.0f - fBlend) * noise1D[nSample1] + fBlend * noise1D[nSample2];
-
-			iNoise += fInter * fScale;
-			fScaleAcc += fScale;
-			fScale /= fScalingBias;
-		}
-		pNoise1D[i] = iNoise / fScaleAcc;
-	}
-	return pNoise1D;
+            iNoise += fInter * fScale;
+            fScaleAcc += fScale;
+            fScale /= fScalingBias;
+        }
+        pNoise1D[i] = iNoise / fScaleAcc;
+    }
+    return pNoise1D;
 }
 
 int main() {
-    GLFWwindow* window = glutilInit(3, 3, SCR_WIDTH, SCR_HEIGHT, "Terreno");
+    GLFWwindow* window = glutilInit(3, 3, SCR_WIDTH, SCR_HEIGHT, "Trabajo Parcial");
     Shader* shader = new Shader("/Users/wilmartarazona/Documents/OpenGL", "/Users/wilmartarazona/Pictures/Texturas");
-    //Shader* shader1 = new Shader("/Users/wilmartarazona/Documents/OpenGL", "/Users/wilmartarazona/Pictures/Texturas");
-    //Shader* shader2 = new Shader("/Users/wilmartarazona/Documents/OpenGL", "/Users/wilmartarazona/Pictures/Texturas");
     Cube* cube = new Cube();
     
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     
-	std::vector<float> pNoise1D = perlinNoise1D(7, 3.20);
-	std::vector<glm::vec3> positions(n*n);
-	for (u32 i = 0; i < n; ++i) {
-		for (u32 j = 0; j < n; ++j) {
-			f32 x = i - n / 2.0f + 0.01;
-			f32 z = j - n / 2.0f + 0.01;
-			f32 y = int(pNoise1D[i] * 120) - 30;
-			positions[i*n + j] = glm::vec3(x, y, z);			
-		}
-	}
+    vector<float> pNoise1D = perlinNoise1D(7, 3.20);
+    vector<glm::vec3> positions(n*n);
+    for (u32 i = 0; i < n; ++i) {
+        for (u32 j = 0; j < n; ++j) {
+            f32 x = i - n / 2.0f + 0.01;
+            f32 z = j - n / 2.0f + 0.01;
+            f32 y = int(pNoise1D[i] * 120) - 30;
+            positions[i*n + j] = glm::vec3(x, y, z);
+        }
+    }
     
     unsigned int vbo, vao, ebo;
     glGenVertexArrays(1, &vao);
@@ -159,7 +157,7 @@ int main() {
         glBindVertexArray(vao);
         
         for (unsigned int i = 0; i < positions.size(); ++i) {
-            if ((positions[i].y > -5) {
+            if (positions[i].y > -5) {
                 glBindTexture(GL_TEXTURE_2D, textura);
             }
             else if (positions[i].y > -10) {
