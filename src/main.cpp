@@ -22,7 +22,9 @@ float lastFrame = 0.0f;
 
 unsigned int n = 128;
 
-Cam camara(0.0, 8.5);
+Cam camara(8.0, 4.5);
+vec3 lightPos(8.0, 4.5, -2.0f);
+vec3 lightColor(1.0f, 1.0f, 1.0f);
 
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -63,12 +65,8 @@ void scroll_callback(GLFWwindow* window, double xpos, double ypos) {
 
 vector<float> perlinNoise1D(int nOctaves, float fScalingBias) {
     vector<float> pNoise1D(n);
-
     vector<float> noise1D(n);
     for (int i = 0; i < n; i++) noise1D[i] = (float)rand() / (float)RAND_MAX;
-
-    
-
     for (int i = 0; i < n; i++)
     {
         float iNoise = 0.0f;
@@ -95,24 +93,26 @@ vector<float> perlinNoise1D(int nOctaves, float fScalingBias) {
 int main() {
     GLFWwindow* window = glutilInit(3, 3, SCR_WIDTH, SCR_HEIGHT, "Trabajo Parcial");
     Shader* shader = new Shader("/Users/wilmartarazona/Documents/OpenGL", "/Users/wilmartarazona/Pictures/Texturas");
+    Shader* lightCubeShader = new Shader("/Users/wilmartarazona/Documents/OpenGL", "/Users/wilmartarazona/Pictures/Texturas", "shader2.vert", "shader2.frag");
     Cube* cube = new Cube();
     
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     
     vector<float> pNoise1D = perlinNoise1D(7, 3.20);
-    vector<glm::vec3> positions(n*n);
+    vector<vec3> positions(n*n);
     for (u32 i = 0; i < n; ++i) {
         for (u32 j = 0; j < n; ++j) {
             f32 x = i - n / 2.0f + 0.01;
             f32 z = j - n / 2.0f + 0.01;
             f32 y = int(pNoise1D[i] * 120) - 30;
-            positions[i*n + j] = glm::vec3(x, y, z);
+            positions[i*n + j] = vec3(x, y, z);
         }
     }
     
-    unsigned int vbo, vao, ebo;
+    unsigned int vbo, vao, ebo, lightCubeVao;
     glGenVertexArrays(1, &vao);
+    glGenVertexArrays(1, &lightCubeVao);
     glGenBuffers(1, &vbo);
     glGenBuffers(1, &ebo);
     
@@ -134,6 +134,13 @@ int main() {
     unsigned int textura1 = shader->loadTexture("pasto.jpg");
     unsigned int textura2 = shader->loadTexture("grietas.jpg");
     
+    glBindVertexArray(lightCubeVao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*FSIZE, (void*)0);
+    glEnableVertexAttribArray(0);
+    
     glEnable(GL_DEPTH_TEST);
     
     while(!glfwWindowShouldClose(window)){
@@ -144,17 +151,17 @@ int main() {
         processInput(window);
         glClearColor(.1f, .2f, .3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
-        shader->useProgram();
-        
         mat4 projection = perspective(camara.getZoom(), ASPECT, 0.1f, 100.0f);
-        shader->setMat4("proj", projection);
-        
-        mat4 view = mat4(1.0f);
-        view = camara.getViewM4();
-        shader->setMat4("view", view);
         
         glBindVertexArray(vao);
+        shader->useProgram();
+        shader->setVec3("xyz", lightPos.x, lightPos.y, lightPos.z);
+        shader->setVec3("xyzColor", lightColor.x, lightColor.y, lightColor.z);
+        shader->setF32("lightStrenght", 100.0f);
+        shader->setVec3("xyzView", camara.getPos().x, camara.getPos().y, camara.getPos().z);
+        
+        shader->setMat4("proj", projection);
+        shader->setMat4("view", camara.getViewM4());
         
         for (unsigned int i = 0; i < positions.size(); ++i) {
             if (positions[i].y > -5) {
@@ -171,6 +178,19 @@ int main() {
             shader->setMat4("model", model);
             glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
         }
+        
+        glBindVertexArray(lightCubeVao);
+        lightCubeShader->useProgram();
+        lightCubeShader->setVec3("lightColor", lightColor.x, lightColor.y, lightColor.z);
+        lightCubeShader->setF32("lightIntensity", 1.0f);
+        lightCubeShader->setMat4("proj", projection);
+        lightCubeShader->setMat4("view", camara.getViewM4());
+        
+        mat4 model = mat4(1.0f);
+        model = translate(model, lightPos);
+        model = scale(model, vec3(0.2f));
+        lightCubeShader->setMat4("model", model);
+        glDrawElements(GL_TRIANGLES, 6*6, GL_UNSIGNED_INT, 0);
         
         glfwSwapBuffers(window);
         glfwPollEvents();
